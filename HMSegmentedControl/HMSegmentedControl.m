@@ -18,6 +18,7 @@
 @property (nonatomic, strong) CALayer *selectionIndicatorStripLayer;
 @property (nonatomic, strong) CALayer *selectionIndicatorBoxLayer;
 @property (nonatomic, strong) CALayer *selectionIndicatorArrowLayer;
+@property (nonatomic, strong) CALayer *selectionIndicatorCircleLayer;
 @property (nonatomic, readwrite) CGFloat segmentWidth;
 @property (nonatomic, readwrite) NSArray<NSNumber *> *segmentWidthsArray;
 @property (nonatomic, strong) HMScrollView *scrollView;
@@ -153,8 +154,10 @@
     self.shouldAnimateUserSelection = YES;
     
     self.selectionIndicatorArrowLayer = [CALayer layer];
+    self.selectionIndicatorCircleLayer = [CALayer layer];
     self.selectionIndicatorStripLayer = [CALayer layer];
     self.selectionIndicatorBoxLayer = [CALayer layer];
+    
     self.selectionIndicatorBoxLayer.opacity = self.selectionIndicatorBoxOpacity;
     self.selectionIndicatorBoxLayer.borderWidth = 1.0f;
     self.selectionIndicatorBoxOpacity = 0.2;
@@ -271,6 +274,7 @@
     UIRectFill([self bounds]);
     
     self.selectionIndicatorArrowLayer.backgroundColor = self.selectionIndicatorColor.CGColor;
+    self.selectionIndicatorCircleLayer.backgroundColor = self.selectionIndicatorColor.CGColor;
     
     self.selectionIndicatorStripLayer.backgroundColor = self.selectionIndicatorColor.CGColor;
     
@@ -459,6 +463,11 @@
                 [self setArrowFrame];
                 [self.scrollView.layer addSublayer:self.selectionIndicatorArrowLayer];
             }
+        } else if (self.selectionStyle == HMSegmentedControlSelectionStyleCircle) {
+            if (!self.selectionIndicatorCircleLayer.superlayer) {
+                [self setCircleFrame];
+                [self.scrollView.layer addSublayer:self.selectionIndicatorCircleLayer];
+            }
         } else {
             if (!self.selectionIndicatorStripLayer.superlayer) {
                 self.selectionIndicatorStripLayer.frame = [self frameForSelectionIndicator];
@@ -540,6 +549,21 @@
     self.selectionIndicatorArrowLayer.mask = maskLayer;
 }
 
+- (void)setCircleFrame {
+    self.selectionIndicatorCircleLayer.frame = [self frameForSelectionIndicator];
+    
+    self.selectionIndicatorCircleLayer.mask = nil;
+    
+    UIBezierPath *circlePath = [UIBezierPath bezierPathWithOvalInRect:CGRectMake(0,
+                                                                                 0,
+                                                                                 CGRectGetHeight(self.selectionIndicatorCircleLayer.frame),
+                                                                                 CGRectGetHeight(self.selectionIndicatorCircleLayer.frame))];
+    CAShapeLayer *maskLayer = [[CAShapeLayer alloc] init];
+    maskLayer.frame = self.selectionIndicatorCircleLayer.bounds;
+    maskLayer.path = circlePath.CGPath;
+    self.selectionIndicatorCircleLayer.mask = maskLayer;
+}
+
 - (CGRect)frameForSelectionIndicator {
     CGFloat indicatorYOffset = 0.0f;
     
@@ -567,7 +591,8 @@
         sectionWidth = MAX(stringWidth, imageWidth);
 	}
     
-    if (self.selectionStyle == HMSegmentedControlSelectionStyleArrow) {
+    if (self.selectionStyle == HMSegmentedControlSelectionStyleArrow
+        || self.selectionStyle == HMSegmentedControlSelectionStyleCircle) {
         CGFloat widthToEndOfSelectedSegment = (self.segmentWidth * self.selectedSegmentIndex) + self.segmentWidth;
         CGFloat widthToStartOfSelectedIndex = (self.segmentWidth * self.selectedSegmentIndex);
         
@@ -801,6 +826,7 @@
     
     if (index == HMSegmentedControlNoSegment) {
         [self.selectionIndicatorArrowLayer removeFromSuperlayer];
+        [self.selectionIndicatorCircleLayer removeFromSuperlayer];
         [self.selectionIndicatorStripLayer removeFromSuperlayer];
         [self.selectionIndicatorBoxLayer removeFromSuperlayer];
     } else {
@@ -817,7 +843,14 @@
                     [self setSelectedSegmentIndex:index animated:NO notify:YES];
                     return;
                 }
-            }else {
+            } else if (self.selectionStyle == HMSegmentedControlSelectionStyleCircle) {
+                if ([self.selectionIndicatorCircleLayer superlayer] == nil) {
+                    [self.scrollView.layer addSublayer:self.selectionIndicatorCircleLayer];
+                    
+                    [self setSelectedSegmentIndex:index animated:NO notify:YES];
+                    return;
+                }
+            } else {
                 if ([self.selectionIndicatorStripLayer superlayer] == nil) {
                     [self.scrollView.layer addSublayer:self.selectionIndicatorStripLayer];
                     
@@ -834,6 +867,7 @@
             
             // Restore CALayer animations
             self.selectionIndicatorArrowLayer.actions = nil;
+            self.selectionIndicatorCircleLayer.actions = nil;
             self.selectionIndicatorStripLayer.actions = nil;
             self.selectionIndicatorBoxLayer.actions = nil;
             
@@ -850,6 +884,7 @@
             // Disable CALayer animations
             NSMutableDictionary *newActions = [[NSMutableDictionary alloc] initWithObjectsAndKeys:[NSNull null], @"position", [NSNull null], @"bounds", nil];
             self.selectionIndicatorArrowLayer.actions = newActions;
+            self.selectionIndicatorCircleLayer.actions = newActions;
             [self setArrowFrame];
             
             self.selectionIndicatorStripLayer.actions = newActions;
